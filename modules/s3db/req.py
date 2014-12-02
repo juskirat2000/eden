@@ -66,6 +66,7 @@ class S3RequestModel(S3Model):
     names = ("req_req",
              "req_req_id",
              "req_req_ref",
+             "req_req_event",
              "req_hide_quantities",
              "req_inline_form",
              "req_create_form_mods",
@@ -178,13 +179,6 @@ class S3RequestModel(S3Model):
         tablename = "req_req"
         self.define_table(tablename,
                           super_link("doc_id", "doc_entity"),
-                          # @ToDo: Replace with Link Table
-                          self.event_event_id(
-                               default = session.s3.event,
-                               ondelete = "SET NULL",
-                               readable = False,
-                               writable = False,
-                               ),
                           Field("type", "integer",
                                 label = T("Request Type"),
                                 represent = lambda opt: \
@@ -545,7 +539,40 @@ class S3RequestModel(S3Model):
                    method="form",
                    action=self.req_form)
 
+        # ---------------------------------------------------------------------
+        # Link Table: Request <> Events
+        tablename = "req_req_event"
+        self.define_table(tablename,
+                          req_id(empty=False),
+                          self.event_event_id(
+                               default = session.s3.event,
+                               ondelete = "SET NULL",
+                               readable = True,
+                               writable = True,
+                               comment = S3AddResourceLink(c="event",
+                                                           f="event",
+                                                           label = T("Create Event"),
+                                                           title=T("Event"),
+                                                           tooltip=messages.AUTOCOMPLETE_HELP),
+                               ),
+                          *s3_meta_fields())
+
+        # CRUD strings
+        crud_strings[tablename] = Storage(
+            label_create = T("Create Event"),
+            title_display = T("Event Details"),
+            title_list = T("Events"),
+            title_report = T("Event Report"),
+            title_update = T("Edit Event"),
+            label_list_button = T("List Events"),
+            label_delete_button = T("Delete Event"),
+            msg_record_created = T("Event Added"),
+            msg_record_modified = T("Event Updated"),
+            msg_record_deleted = T("Event Deleted"),
+            msg_list_empty = T("No Events"))
+
         # Components
+        tablename = "req_req"
         add_components(tablename,
                        # Documents
                        req_document = "req_id",
@@ -564,6 +591,12 @@ class S3RequestModel(S3Model):
                                                "joinby": "req_id",
                                                "key": "item_category_id",
                                                },
+                       # Request Event
+                       req_req_event = {"name":"req_event",
+                                        "joinby": "req_id",
+                                        "link": "req_req_event",
+                                        "key": "event_id",
+                                        },
 
                        **{# Scheduler Jobs (for recurring requests)
                           S3Task.TASK_TABLENAME: {"name": "job",
@@ -735,7 +768,12 @@ $.filterOptionsS3({
                                   "item_pack_id",
                                   "quantity",
                                   "comments"
-                                  ]
+                                  ],
+                        ),
+                      S3SQLInlineLink(
+                        "req_event",
+                        label = T("Events"),
+                        field = "event_id"
                       ),
                       "comments",
                       ]
@@ -804,6 +842,11 @@ $.filterOptionsS3({
                                   "skill_id",
                                   "comments"
                                   ]
+                      ),
+                      S3SQLInlineLink(
+                        "req_event",
+                        label = T("Events"),
+                        field = "event_id"
                       ),
                       "comments",
                       ]
@@ -3539,7 +3582,7 @@ def req_rheader(r, check_page=False):
                 use_commit = settings.get_req_use_commit()
                 is_template = record.is_template
 
-                tabs = [(T("Edit Details"), None)]
+                tabs = [(T("Edit Details"), None), (T("Events"),"req_event")]
                 type = record.type
                 if type == 1 and settings.has_module("inv"):
                     if settings.get_req_multiple_req_items():
