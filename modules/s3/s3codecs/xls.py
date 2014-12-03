@@ -201,14 +201,6 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
         # Create the workbook
         book = xlwt.Workbook(encoding="utf-8")
 
-        # Add a sheet
-        # Can't have a / in the sheet_name, so replace any with a space
-        sheet_name = str(title.replace("/", " "))
-        # sheet_name cannot be over 31 chars
-        if len(sheet_name) > 31:
-            sheet_name = sheet_name[:31]
-        sheet1 = book.add_sheet(sheet_name)
-
         # Styles
         styleLargeHeader = xlwt.XFStyle()
         styleLargeHeader.font.bold = True
@@ -246,35 +238,21 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
             styleEven.pattern.pattern = styleEven.pattern.SOLID_PATTERN
             styleEven.pattern.pattern_fore_colour = S3XLS.ROW_ALTERNATING_COLOURS[1]
 
-        # Header row
-        colCnt = 0
-        #headerRow = sheet1.row(2)
-        headerRow = sheet1.row(0)
-        fieldWidths = []
-        id = False
-        for selector in lfields:
-            if selector == report_groupby:
-                continue
-            label = headers[selector]
-            if label == "Id":
-                # Indicate to adjust colCnt when writing out
-                id = True
-                fieldWidths.append(0)
-                colCnt += 1
-                continue
-            if label == "Sort":
-                continue
-            if id:
-                # Adjust for the skipped column
-                writeCol = colCnt - 1
-            else:
-                writeCol = colCnt
-            headerRow.write(writeCol, str(label), styleHeader)
-            width = max(len(label) * COL_WIDTH_MULTIPLIER, 2000)
-            #width = len(label) * COL_WIDTH_MULTIPLIER
-            fieldWidths.append(width)
-            sheet1.col(writeCol).width = width
-            colCnt += 1
+        # Add a sheet
+        # Can't have a / in the sheet_name, so replace any with a space
+        sheet_name = str(title.replace("/", " "))
+        # sheet_name cannot be over 31 chars
+        if len(sheet_name) > 31:
+            sheet_name = sheet_name[:31]
+        sheet = book.add_sheet(sheet_name)
+        sheet_count = 1
+
+        colCnt, fieldWidths = self.add_headers(sheet,
+                                               lfields,
+                                               styleHeader,
+                                               headers,
+                                               report_groupby)
+
         # Title row
         # - has been removed to allow columns to be easily sorted post-export.
         # - add deployment_setting if an Org wishes a Title Row
@@ -299,7 +277,17 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
         for row in rows:
             # Item details
             rowCnt += 1
-            currentRow = sheet1.row(rowCnt)
+            if rowCnt > 65536:
+                sheet = book.add_sheet(sheet_name + str(sheet_count))
+                colCnt, fieldWidths = self.add_headers(sheet,
+                                       lfields,
+                                       styleHeader,
+                                       headers,
+                                       report_groupby)
+                sheet_count += 1
+                rowCnt = 1
+
+            currentRow = sheet.row(rowCnt)
             colCnt = 0
             if rowCnt % 2 == 0:
                 style = styleEven
@@ -309,10 +297,10 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
                 represent = s3_strip_markup(s3_unicode(row[report_groupby]))
                 if subheading != represent:
                     subheading = represent
-                    sheet1.write_merge(rowCnt, rowCnt, 0, totalCols,
+                    sheet.write_merge(rowCnt, rowCnt, 0, totalCols,
                                        subheading, styleSubHeader)
                     rowCnt += 1
-                    currentRow = sheet1.row(rowCnt)
+                    currentRow = sheet.row(rowCnt)
                     if rowCnt % 2 == 0:
                         style = styleEven
                     else:
@@ -381,20 +369,22 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
                         style.num_format_str = "0.00"
                     except:
                         pass
+
                 if id:
-                    # Adjust for the skipped column
-                    writeCol = colCnt - 1
+                    #Adjust for the skipped column
+                    writeCol = colCnt -1
                 else:
                     writeCol = colCnt
+
                 currentRow.write(writeCol, value, style)
                 width = len(represent) * COL_WIDTH_MULTIPLIER
                 if width > fieldWidths[colCnt]:
                     fieldWidths[colCnt] = width
-                    sheet1.col(writeCol).width = width
+                    sheet.col(writeCol).width = width
                 colCnt += 1
-        sheet1.panes_frozen = True
+        sheet.panes_frozen = True
         #sheet1.horz_split_pos = 3
-        sheet1.horz_split_pos = 1
+        sheet.horz_split_pos = 1
 
         output = StringIO()
         book.save(output)
@@ -408,6 +398,48 @@ List Fields %s""" % (request.url, len(headers), len(items[0]), headers, list_fie
 
         output.seek(0)
         return output.read()
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_headers(sheet, lfields, style, headers, report_groupby):
+        '''
+            A helper function to add header to Excel sheets
+
+            @param sheet: The xlwt worksheet
+            @param lfields: list of fields
+            @param style: Style format for the headers
+
+        '''
+        colCnt = 0
+        headerRow = sheet.row(0)
+        fieldWidths = []
+        id = False
+        for selector in lfields:
+            if selector == report_groupby:
+                continue
+            label = headers[selector]
+            if label == "Id":
+                # Indicate to adjust colCnt when writing out
+                id = True
+                fieldWidths.append(0)
+                colCnt += 1
+                continue
+            if label == "Sort":
+                continue
+            if id:
+                # Adjust for the skipped column
+                writeCol = colCnt - 1
+            else:
+                writeCol = colCnt
+            headerRow.write(writeCol, str(label), style)
+            width = max(len(label) * S3XLS.COL_WIDTH_MULTIPLIER, 2000)
+            #width = len(label) * COL_WIDTH_MULTIPLIER
+            fieldWidths.append(width)
+            sheet.col(writeCol).width = width
+            colCnt += 1
+
+        return (colCnt, fieldWidths)
+
 
     # -------------------------------------------------------------------------
     @staticmethod
