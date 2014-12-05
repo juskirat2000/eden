@@ -1827,15 +1827,15 @@ class S3ProjectBeneficiaryModel(S3Model):
                   report_options = report_options,
                   super_entity = "stats_data",
                   )
-
+        project_beneficiary_represent = project_BeneficiaryRepresent()
         # Reusable Field
         beneficiary_id = S3ReusableField("beneficiary_id", "reference %s" % tablename,
             label = T("Beneficiaries"),
             ondelete = "SET NULL",
-            represent = self.project_beneficiary_represent,
+            represent = project_beneficiary_represent,
             requires = IS_EMPTY_OR(
                         IS_ONE_OF(db, "project_beneficiary.id",
-                                  self.project_beneficiary_represent,
+                                  project_beneficiary_represent,
                                   sort=True)),
             sortby = "name",
             comment = S3AddResourceLink(c="project", f="beneficiary",
@@ -1893,33 +1893,6 @@ class S3ProjectBeneficiaryModel(S3Model):
 
         # Pass names back to global scope (s3.*)
         return dict()
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def project_beneficiary_represent(id, row=None):
-        """
-            FK representation
-            @ToDo: Bulk
-        """
-
-        if row:
-            return row.type
-        if not id:
-            return current.messages["NONE"]
-
-        db = current.db
-        table = db.project_beneficiary
-        ttable = db.project_beneficiary_type
-        query = (table.id == id) & \
-                (table.parameter_id == ttable.id)
-        r = db(query).select(table.value,
-                             ttable.name,
-                             limitby = (0, 1)).first()
-        try:
-            return "%s %s" % (r["project_beneficiary.value"],
-                              r["project_beneficiary_type.name"])
-        except:
-            return current.messages.UNKNOWN_OPT
 
     # ---------------------------------------------------------------------
     @staticmethod
@@ -2000,6 +1973,68 @@ class S3ProjectBeneficiaryModel(S3Model):
             if duplicate:
                 item.id = duplicate.id
                 item.method = item.METHOD.UPDATE
+
+# =============================================================================
+class project_BeneficiaryRepresent(S3Represent):
+    """ Representation of Organisations """
+
+    def __init__(self):
+
+        self.lookup_rows = self.custom_lookup_rows
+        fields = ["project_beneficiary.value",
+                  "project_beneficiary_type.name"]
+
+        super(project_BeneficiaryRepresent,
+              self).__init__(lookup="project_beneficiary",
+                             fields=fields)
+
+    # -------------------------------------------------------------------------
+    def custom_lookup_rows(self, key, values, fields=[]):
+        """
+            Custom lookup method for Project Beneficiaries rows.Parameters
+            key and fields are not used, but are kept for API compatibility
+            reasons.
+
+            @param values: the project_beneficiary IDs
+
+        """
+
+        db = current.db
+        table = db.project_beneficiary
+        ttable = db.project_beneficiary_type
+
+        left = [ttable.on(table.parameter_id == ttable.id)]
+
+        if len(values) == 1:
+            query = (table.id == values[0])
+            limitby = (0, 1)
+        else:
+            query = (table.id.belongs(values))
+            limitby = (0, len(values))
+
+        rows = db(query).select(*self.fields,
+                                left=left,
+                                limitby=limitby)
+
+        return rows
+
+    # -------------------------------------------------------------------------
+    def represent_row(self, row):
+        """
+            Represent a single Row
+
+            @param row: the project_benficiary Row
+        """
+        
+        id = row.id
+        if not id:
+            return current.messagesp["None"]
+
+        try:
+            return "%s %s" % (row["project_benficiary.value"],
+                              row["project_benficiary_type.name"])
+        except:
+            return current.messages.UNKOWN_OPT
 
 # =============================================================================
 class S3ProjectCampaignModel(S3Model):
