@@ -457,25 +457,26 @@ class S3Config(Storage):
         """
         T = current.T
         return self.auth.get("role_modules", OrderedDict([
-            ("staff", "Staff"),
-            ("vol", "Volunteers"),
-            ("member", "Members"),
-            ("inv", "Warehouses"),
-            ("asset", "Assets"),
-            ("project", "Projects"),
-            ("survey", "Assessments"),
-            ("irs", "Incidents")
+            ("staff", T("Staff")),
+            ("vol", T("Volunteers")),
+            ("member", T("Members")),
+            ("inv", T("Warehouses")),
+            ("asset", T("Assets")),
+            ("project", T("Projects")),
+            ("survey", T("Assessments")),
+            ("irs", T("Incidents"))
         ]))
 
     def get_auth_access_levels(self):
         """
             Access levels for the Role Manager UI
         """
+        T = current.T
         return self.auth.get("access_levels", OrderedDict([
-            ("reader", "Reader"),
-            ("data_entry", "Data Entry"),
-            ("editor", "Editor"),
-            ("super", "Super Editor")
+            ("reader", T("Reader")),
+            ("data_entry", T("Data Entry")),
+            ("editor", T("Editor")),
+            ("super", T("Super Editor"))
         ]))
 
     def get_auth_set_presence_on_login(self):
@@ -922,6 +923,14 @@ class S3Config(Storage):
     def get_gis_map_selector(self):
         " Display a Map-based tool to select Locations "
         return self.gis.get("map_selector", True)
+
+    def get_gis_map_selector_height(self):
+        """ Height of the map selector map """
+        return self.gis.get("map_selector_height", 340)
+
+    def get_gis_map_selector_width(self):
+        """ Width of the map selector map """
+        return self.gis.get("map_selector_width", 480)
 
     def get_gis_marker_max_height(self):
         return self.gis.get("marker_max_height", 35)
@@ -1538,7 +1547,7 @@ class S3Config(Storage):
     def get_ui_multiselect_widget(self):
         """
             Whether all dropdowns should use the S3MultiSelectWidget
-            - currently respected by Auth Registration & S3LocationSelectorWidget2
+            - currently respected by Auth Registration & S3LocationSelector
 
             Options:
                 False (default): No widget

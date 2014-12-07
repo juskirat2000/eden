@@ -1183,7 +1183,7 @@ def cms_customise_post_fields():
     field.label = ""
     field.represent = s3db.gis_LocationRepresent(sep=" | ")
     # Required
-    field.requires = IS_LOCATION_SELECTOR2()
+    field.requires = IS_LOCATION()
 
     list_fields = ["series_id",
                    "location_id",

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 
 """
     GIS Controllers
@@ -87,20 +86,25 @@ def map_viewing_client():
     print_mode = get_vars.get("print", None)
     if print_mode:
         collapsed = True
+        mouse_position = False
+        print_mode = True
         toolbar = False
-        save = False
         zoomcontrol = False
     else:
         collapsed = False
+        mouse_position = None # Use deployment_settings
+        print_mode = False
         toolbar = True
-        save = settings.get_gis_save()
         zoomcontrol = None
 
+    save = settings.get_gis_save()
     map = define_map(window = True,
                      toolbar = toolbar,
                      collapsed = collapsed,
                      closable = False,
                      maximizable = False,
+                     mouse_position = mouse_position,
+                     print_mode = print_mode,
                      save = save,
                      zoomcontrol = zoomcontrol,
                      )
@@ -116,6 +120,8 @@ def define_map(height = None,
                closable = True,
                collapsed = False,
                maximizable = True,
+               mouse_position = None,
+               print_mode = False,
                save = False,
                zoomcontrol = None,
                ):
@@ -251,6 +257,8 @@ def define_map(height = None,
                        catalogue_layers = True,
                        feature_resources = feature_resources,
                        legend = legend,
+                       mouse_position = mouse_position,
+                       print_mode = print_mode,
                        save = save,
                        search = search,
                        toolbar = toolbar,
@@ -575,7 +583,7 @@ def location():
 # -----------------------------------------------------------------------------
 def ldata():
     """
-        Return JSON of location hierarchy suitable for use by S3LocationSelectorWidget2
+        Return JSON of location hierarchy suitable for use by S3LocationSelector
         '/eden/gis/ldata/' + id
 
         n = {id : {'n' : name,
@@ -701,7 +709,7 @@ def ldata():
 # -----------------------------------------------------------------------------
 def hdata():
     """
-        Return JSON of hierarchy labels suitable for use by S3LocationSelectorWidget2
+        Return JSON of hierarchy labels suitable for use by S3LocationSelector
         '/eden/gis/hdata/' + l0_id
 
         n = {l0_id : {1 : l1_name,
@@ -3092,7 +3100,7 @@ def geocode():
     else:
         # Lx: Lookup Bounds in our own database
         # @ToDo
-        # Not needed by S3LocationSelectorWidget2 as it downloads bounds with options
+        # Not needed by S3LocationSelector as it downloads bounds with options
         results = "NotImplementedError"
 
     results = json.dumps(results, separators=SEPARATORS)
@@ -3702,8 +3710,34 @@ def screenshot():
 
     config_id = request.args(0) or 1
 
-    filename = gis.get_screenshot(config_id)
-    redirect(URL(c="static", f="cache",
-                 args=["jpg", filename]))
+    size = get_vars.get("size")
+    if size == "Letter":
+        height = 612
+        width = 792
+    elif size == "A4":
+        height = 595
+        width = 842
+    elif size == "A3":
+        height = 842
+        width = 1191
+    elif size == "A2":
+        height = 1191
+        width = 1684
+    elif size == "A1":
+        height = 1684
+        width = 2384
+    elif size == "A0":
+        height = 2384
+        width = 3375
+    else:
+        height = get_vars.get("height")
+        width = get_vars.get("width")
+
+    filename = gis.get_screenshot(config_id, height=height, width=width)
+    if filename:
+        redirect(URL(c="static", f="cache",
+                     args=["jpg", filename]))
+    else:
+        raise HTTP(500, "Screenshot not taken")
 
 # END =========================================================================
