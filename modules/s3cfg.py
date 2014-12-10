@@ -2078,6 +2078,13 @@ class S3Config(Storage):
         """
         return self.cr.get("shelter_housing_unit_management", False)
 
+    def get_cr_shelter_notification_subject(self):
+        """
+            Subject for the Shelter Notification Dispatcher
+        """
+        T = current.T
+        return self.cr.get("notification_subject", T("Deploment Request"))
+
     # -------------------------------------------------------------------------
     # Deployments
     #
@@ -2102,6 +2109,13 @@ class S3Config(Storage):
             Whether Incident Types are Hierarchical or not
         """
         return self.event.get("incident_types_hierarchical", False)
+
+    def get_event_notification_subject(self):
+        """
+            Subject for the Event Notification Dispatcher
+        """
+        T = current.T
+        return self.event.get("notification_subject", T("Deployment Request"))
 
     # -------------------------------------------------------------------------
     # Evacuees
